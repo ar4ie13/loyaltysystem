@@ -5,15 +5,18 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
+	authconf "github.com/ar4ie13/loyaltysystem/internal/auth/config"
 	serverconf "github.com/ar4ie13/loyaltysystem/internal/handlers/config"
 	logconf "github.com/ar4ie13/loyaltysystem/internal/logger/config"
-	pgconf "github.com/ar4ie13/loyaltysystem/internal/repository/postgresql/config"
+	pgconf "github.com/ar4ie13/loyaltysystem/internal/repository/db/postgresql/config"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
 type Config struct {
+	AuthConf    authconf.Config
 	ServerConf  serverconf.ServerConf
 	PGConf      pgconf.PGConf
 	AccrualAddr string
@@ -27,14 +30,22 @@ func NewConfig() *Config {
 }
 
 func (c *Config) GetConfig() {
+
 	defaultServerAddr := "localhost:8080"
 	defaultDatabaseDSN := ""
 	defaultAccrualAddr := ""
 	defaultLogLevel := zerolog.InfoLevel
+	defaultSecretKey := "nHhjHgahbioHBGbBHJ"
+	defaultTokenExpiration := time.Hour * 24
+	defaultPasswordLength := 6
+
 	flag.StringVar(&c.ServerConf.ServerAddr, "a", defaultServerAddr, "server startup address (host:port)")
 	flag.StringVar(&c.PGConf.DatabaseDSN, "d", defaultDatabaseDSN, "database connection string")
 	flag.StringVar(&c.AccrualAddr, "r", defaultAccrualAddr, "accrual server address")
 	flag.Var(&c.LogConf, "l", "log level (debug, info, warn, error, fatal)")
+	flag.StringVar(&c.AuthConf.SecretKey, "k", defaultSecretKey, "secret key for authorization")
+	flag.DurationVar(&c.AuthConf.TokenExpiration, "e", defaultTokenExpiration, "token expiration")
+	flag.IntVar(&c.AuthConf.PasswordLen, "p", defaultPasswordLength, "password minimal length")
 
 	if err := c.LogConf.Set(defaultLogLevel.String()); err != nil {
 		log.Fatal().Err(err).Msg("Failed to set default log level")
@@ -71,5 +82,25 @@ func (c *Config) GetConfig() {
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to set log level from LOG_LEVEL")
 		}
+	}
+
+	if secretKey := os.Getenv("SECRET_KEY"); secretKey != "" {
+		c.AuthConf.SecretKey = secretKey
+	}
+
+	if tokenExpirationStr := os.Getenv("TOKEN_EXPIRATION"); tokenExpirationStr != "" {
+		var err error
+		c.AuthConf.TokenExpiration, err = time.ParseDuration(tokenExpirationStr)
+		if err != nil {
+			log.Fatal().Err(err).Msg("cannot parse token expiration environment variable")
+		}
+
+	}
+
+	if passwordLen, err := strconv.Atoi(os.Getenv("SECRET_KEY")); passwordLen != 0 {
+		if err != nil {
+			log.Fatal().Err(err).Msg("cannot parse password length environment variable")
+		}
+		c.AuthConf.PasswordLen = passwordLen
 	}
 }

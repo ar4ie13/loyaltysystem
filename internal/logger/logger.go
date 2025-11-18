@@ -14,10 +14,12 @@ type Logger struct {
 
 // NewLogger creates a new Logger with the given zerolog level
 func NewLogger(level zerolog.Level) *Logger {
-	return &Logger{
+	log := &Logger{
 		Logger: zerolog.New(zerolog.ConsoleWriter{
 			Out:        os.Stdout,
 			TimeFormat: time.RFC3339,
 		}).With().Timestamp().Logger().Level(level),
 	}
+	log.Info().Msgf("Log level: %s", level)
+	return log
 }
