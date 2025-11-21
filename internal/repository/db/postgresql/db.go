@@ -57,10 +57,10 @@ func (db *DB) Close() error {
 
 func (db *DB) CreateUser(ctx context.Context, user models.User) error {
 	const query = `
-		INSERT INTO users (uuid, login, password_hash) 
-		VALUES ($1, $2, $3) ON CONFLICT (login) DO NOTHING`
+		INSERT INTO users (uuid, login, password_hash, created_at, updated_at) 
+		VALUES ($1, $2, $3, $4, $5) ON CONFLICT (login) DO NOTHING`
 
-	tag, err := db.pool.Exec(ctx, query, user.UUID, user.Login, user.PasswordHash)
+	tag, err := db.pool.Exec(ctx, query, user.UUID, user.Login, user.PasswordHash, time.Now(), time.Now())
 	if err != nil {
 		return fmt.Errorf("failed to insert user: %w", err)
 	}
@@ -207,10 +207,9 @@ func (db *DB) GetUnprocessedOrders(ctx context.Context, limit int) ([]string, er
 }
 
 func (db *DB) UpdateOrder(ctx context.Context, orderNum string, status string, accrual float64) error {
-	var query string
 	if accrual == 0 {
-		query = `UPDATE orders  SET status = $1 WHERE order_num = $2`
-		tag, err := db.pool.Exec(ctx, query, status, orderNum)
+		queryUpdOrders := `UPDATE orders  SET status = $1 WHERE order_num = $2`
+		tag, err := db.pool.Exec(ctx, queryUpdOrders, status, orderNum)
 		if err != nil {
 			return fmt.Errorf("failed to update order: %w", err)
 		}
@@ -222,8 +221,8 @@ func (db *DB) UpdateOrder(ctx context.Context, orderNum string, status string, a
 		}
 
 	} else {
-		query = `UPDATE  orders  SET accrual = $1, status = $2 WHERE order_num = $3`
-		tag, err := db.pool.Exec(ctx, query, accrual, status, orderNum)
+		queryUpdOrders := `UPDATE  orders  SET accrual = $1, status = $2 WHERE order_num = $3`
+		tag, err := db.pool.Exec(ctx, queryUpdOrders, accrual, status, orderNum)
 		if err != nil {
 			return fmt.Errorf("failed to update order: %w", err)
 		}
@@ -231,9 +230,37 @@ func (db *DB) UpdateOrder(ctx context.Context, orderNum string, status string, a
 		rowsInserted := tag.RowsAffected()
 
 		if rowsInserted == 0 {
-			return fmt.Errorf("no rows were updated")
+			return fmt.Errorf("no rows were updated during order update")
 		}
+
+		queryUpdUsers := `UPDATE  users  SET balance = balance + $1, updated_at = $2  WHERE uuid = (SELECT user_uuid from orders where order_num = $3)`
+		tag, err = db.pool.Exec(ctx, queryUpdUsers, accrual, time.Now(), orderNum)
+		if err != nil {
+			return fmt.Errorf("failed to update user balance: %w", err)
+		}
+
+		rowsInserted = tag.RowsAffected()
+
+		if rowsInserted == 0 {
+			return fmt.Errorf("no rows were updated during user balance update")
+		}
+
 	}
 
 	return nil
+}
+
+func (db *DB) GetBalance(ctx context.Context, user uuid.UUID) (models.User, error) {
+	const queryStmt = `SELECT balance, withdrawn FROM users 
+                    	WHERE uuid = $1`
+	var balance models.User
+
+	row := db.pool.QueryRow(ctx, queryStmt, user)
+	err := row.Scan(&balance.Balance, &balance.Withdrawn)
+	if err != nil {
+		db.zlog.Error().Msgf("failed to query user balance: %v", err)
+		return balance, err
+	}
+
+	return balance, nil
 }

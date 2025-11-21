@@ -44,6 +44,7 @@ type Service interface {
 	CreateUser(ctx context.Context, user models.User) error
 	PutUserOrder(ctx context.Context, user uuid.UUID, order string) error
 	GetUserOrders(ctx context.Context, userUUID uuid.UUID) ([]models.Order, error)
+	GetBalance(ctx context.Context, user uuid.UUID) (models.User, error)
 }
 
 func (h *Handlers) ListenAndServe() error {
@@ -76,12 +77,13 @@ func (h *Handlers) newRouter() *gin.Engine {
 		user.GET("/test", h.testAuth)
 		user.POST("/orders", h.postOrder)
 		user.GET("/orders", h.getUserOrders)
+		user.GET("/balance", h.getUserBalance)
 	}
 	return router
 }
 
 func (h *Handlers) userRegister(c *gin.Context) {
-	var registerReq RegisterRequest
+	var registerReq registerRequest
 
 	// Bind JSON to struct
 	if err := c.ShouldBindJSON(&registerReq); err != nil {
@@ -149,7 +151,7 @@ func (h *Handlers) userRegister(c *gin.Context) {
 }
 
 func (h *Handlers) userLogin(c *gin.Context) {
-	var loginReq LoginRequest
+	var loginReq loginRequest
 
 	// Bind JSON to struct
 	if err := c.ShouldBindJSON(&loginReq); err != nil {
@@ -314,6 +316,33 @@ func (h *Handlers) getUserOrders(c *gin.Context) {
 		ordersResponse = append(ordersResponse, orderResponse)
 	}
 	c.JSON(http.StatusOK, ordersResponse)
+
+	return
+}
+
+func (h *Handlers) getUserBalance(c *gin.Context) {
+	userUUID, err := h.getUserUUIDFromRequest(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "invalid request body",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	balance, err := h.srv.GetBalance(c, userUUID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "cannot get user balance",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	var userBal userBalance
+	userBal.Balance = balance.Balance
+	userBal.Withdrawn = balance.Withdrawn
+	c.JSON(http.StatusOK, userBal)
 
 	return
 }

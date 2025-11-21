@@ -12,6 +12,8 @@ type User struct {
 	PasswordHash string    `json:"-" json:"password_hash" db:"password_hash"`
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+	Balance      float64   `json:"balance" db:"balance"`
+	Withdrawn    float64   `json:"withdrawn" db:"withdrawn"`
 }
 
 type Order struct {

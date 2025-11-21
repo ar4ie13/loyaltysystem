@@ -7,12 +7,17 @@ type userOrdersResponse struct {
 	CreatedAt   string   `json:"uploaded_at" db:"created_at"`
 }
 
-type RegisterRequest struct {
+type registerRequest struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
 }
 
-type LoginRequest struct {
+type loginRequest struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
+}
+
+type userBalance struct {
+	Balance   float64 `json:"balance"`
+	Withdrawn float64 `json:"withdrawn"`
 }

@@ -29,6 +29,7 @@ type Repository interface {
 	GetUserByLogin(ctx context.Context, login string) (models.User, error)
 	PutUserOrder(ctx context.Context, user uuid.UUID, order string) error
 	GetUserOrders(ctx context.Context, userUUID uuid.UUID) ([]models.Order, error)
+	GetBalance(ctx context.Context, user uuid.UUID) (models.User, error)
 }
 
 func (s *Service) checkLoginString(login string) bool {
@@ -129,4 +130,13 @@ func (s *Service) GetUserOrders(ctx context.Context, userUUID uuid.UUID) ([]mode
 		return nil, err
 	}
 	return orders, nil
+}
+
+func (s *Service) GetBalance(ctx context.Context, user uuid.UUID) (models.User, error) {
+	var balance models.User
+	balance, err := s.repo.GetBalance(ctx, user)
+	if err != nil {
+		return balance, err
+	}
+	return balance, nil
 }
