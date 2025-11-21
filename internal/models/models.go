@@ -14,12 +14,10 @@ type User struct {
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
 
-type RegisterRequest struct {
-	Login    string `json:"login"`
-	Password string `json:"password"`
-}
-
-type LoginRequest struct {
-	Login    string `json:"login"`
-	Password string `json:"password"`
+type Order struct {
+	OrderNumber string    `json:"number" db:"order_num"`
+	Status      string    `json:"status" db:"status"`
+	Accrual     *float64  `json:"accrual" db:"accrual"`
+	UserUUID    uuid.UUID `json:"user_uuid" db:"user_uuid"`
+	CreatedAt   time.Time `json:"uploaded_at" db:"created_at"`
 }

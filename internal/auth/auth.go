@@ -72,6 +72,7 @@ func (a Auth) ValidateUserUUID(tokenString string) (uuid.UUID, error) {
 	if !token.Valid {
 		return uuid.Nil, fmt.Errorf("invalid token")
 	}
+
 	return claims.UserUUID, nil
 }
 
@@ -94,11 +95,12 @@ func (a Auth) GenerateHashFromPassword(password string) (string, error) {
 	if len(password) < a.conf.PasswordLen {
 		return "", fmt.Errorf("%w: should be %d", apperrors.ErrPasswordMinSymbols, a.conf.PasswordLen)
 	}
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 12)
 	return string(bytes), err
 }
 
 func (a Auth) CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+
 	return err == nil
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/ar4ie13/loyaltysystem/internal/handlers"
 	"github.com/ar4ie13/loyaltysystem/internal/logger"
 	"github.com/ar4ie13/loyaltysystem/internal/repository"
+	"github.com/ar4ie13/loyaltysystem/internal/requestor"
 	"github.com/ar4ie13/loyaltysystem/internal/service"
 )
 
@@ -28,7 +29,7 @@ func run() error {
 	}
 	srv := service.NewService(repo, zlog.Logger)
 	hndlr := handlers.NewHandlers(cfg.ServerConf, authorize, srv, zlog.Logger)
-
+	requestor.NewRequestor(cfg.AccrualConf, zlog.Logger, repo)
 	if err = hndlr.ListenAndServe(); err != nil {
 		return err
 	}

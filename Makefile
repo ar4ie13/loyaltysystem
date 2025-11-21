@@ -14,15 +14,14 @@ build:
 	@echo "Building $(BINARY_NAME)..."
 	go build -o $(BUILD_DIR)/$(BINARY_NAME) $(SRC_DIR)/main.go
 
-# Run the Go application
+# Run the Go application with -d
 run: build
 	@echo "Running $(BINARY_NAME)..."
-	$(BUILD_DIR)/$(BINARY_NAME) -l=debug
-
-# Run the Go application with -d
-run-d: build
-	@echo "Running $(BINARY_NAME)..."
 	$(BUILD_DIR)/$(BINARY_NAME) -l=debug -r "localhost:8081" -d="postgres://gophermart:gophermart@localhost:5432/gophermart?sslmode=disable"
+
+# Run accrual with database
+acc:
+	 ./cmd/accrual/accrual_darwin_arm64 -a :8081 -d "postgres://accrual:accrual@localhost:5432/accrual?sslmode=disable"
 
 # Clean built artifacts
 clean: clean-mocks

@@ -6,11 +6,10 @@ import (
 
 	"github.com/ar4ie13/loyaltysystem/internal/repository/db/postgresql"
 	"github.com/ar4ie13/loyaltysystem/internal/repository/db/postgresql/config"
-	"github.com/ar4ie13/loyaltysystem/internal/service"
 	"github.com/rs/zerolog"
 )
 
-func NewRepository(ctx context.Context, conf config.PGConf, zlog zerolog.Logger) (service.Repository, error) {
+func NewRepository(ctx context.Context, conf config.PGConf, zlog zerolog.Logger) (*postgresql.DB, error) {
 	repo, err := postgresql.NewDB(ctx, conf, zlog)
 	if err != nil {
 		log.Fatal(err)

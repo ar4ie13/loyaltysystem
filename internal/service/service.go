@@ -2,9 +2,13 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/ar4ie13/loyaltysystem/internal/apperrors"
 	"github.com/ar4ie13/loyaltysystem/internal/models"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
 
@@ -23,6 +27,8 @@ func NewService(repo Repository, zlog zerolog.Logger) *Service {
 type Repository interface {
 	CreateUser(ctx context.Context, user models.User) error
 	GetUserByLogin(ctx context.Context, login string) (models.User, error)
+	PutUserOrder(ctx context.Context, user uuid.UUID, order string) error
+	GetUserOrders(ctx context.Context, userUUID uuid.UUID) ([]models.Order, error)
 }
 
 func (s *Service) checkLoginString(login string) bool {
@@ -62,4 +68,65 @@ func (s *Service) LoginUser(ctx context.Context, login string) (models.User, err
 	}
 
 	return user, nil
+}
+
+func (s *Service) PutUserOrder(ctx context.Context, user uuid.UUID, order string) error {
+	if !s.checkOrderNumber(order) {
+		return apperrors.ErrIncorrectOrderNumber
+	}
+
+	err := s.repo.PutUserOrder(ctx, user, order)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// checkOrderNumber checks order number for Luhn algorithm compliance
+func (s *Service) checkOrderNumber(order string) bool {
+	if len(order) < 2 {
+		return false
+	}
+
+	t := time.Now()
+	digits := make([]int, len(order))
+	for i, char := range order {
+		digit, err := strconv.Atoi(string(char))
+		if err != nil {
+			return false
+		}
+		digits[i] = digit
+	}
+
+	sum := 0
+	isSecond := false
+
+	for i := len(digits) - 1; i >= 0; i-- {
+		digit := digits[i]
+
+		if isSecond {
+			digit = digit * 2
+			if digit > 9 {
+				digit = digit - 9
+			}
+		}
+
+		sum += digit
+		isSecond = !isSecond
+	}
+	fmt.Println(time.Since(t))
+
+	return sum%10 == 0
+}
+
+func (s *Service) GetUserOrders(ctx context.Context, userUUID uuid.UUID) ([]models.Order, error) {
+	if userUUID == uuid.Nil {
+		return nil, apperrors.ErrInvalidUserUUID
+	}
+
+	orders, err := s.repo.GetUserOrders(ctx, userUUID)
+	if err != nil {
+		return nil, err
+	}
+	return orders, nil
 }

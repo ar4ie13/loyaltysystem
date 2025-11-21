@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	serverconf "github.com/ar4ie13/loyaltysystem/internal/handlers/config"
 	logconf "github.com/ar4ie13/loyaltysystem/internal/logger/config"
 	pgconf "github.com/ar4ie13/loyaltysystem/internal/repository/db/postgresql/config"
+	reqconf "github.com/ar4ie13/loyaltysystem/internal/requestor/config"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -19,7 +21,7 @@ type Config struct {
 	AuthConf    authconf.Config
 	ServerConf  serverconf.ServerConf
 	PGConf      pgconf.PGConf
-	AccrualAddr string
+	AccrualConf reqconf.ReqConf
 	LogConf     logconf.LogLevel
 }
 
@@ -33,7 +35,7 @@ func (c *Config) GetConfig() {
 
 	defaultServerAddr := "localhost:8080"
 	defaultDatabaseDSN := ""
-	defaultAccrualAddr := ""
+	defaultAccrualAddr := "localhost:8081"
 	defaultLogLevel := zerolog.InfoLevel
 	defaultSecretKey := "nHhjHgahbioHBGbBHJ"
 	defaultTokenExpiration := time.Hour * 24
@@ -41,7 +43,7 @@ func (c *Config) GetConfig() {
 
 	flag.StringVar(&c.ServerConf.ServerAddr, "a", defaultServerAddr, "server startup address (host:port)")
 	flag.StringVar(&c.PGConf.DatabaseDSN, "d", defaultDatabaseDSN, "database connection string")
-	flag.StringVar(&c.AccrualAddr, "r", defaultAccrualAddr, "accrual server address")
+	flag.StringVar(&c.AccrualConf.AccrualAddr, "r", defaultAccrualAddr, "accrual server address")
 	flag.Var(&c.LogConf, "l", "log level (debug, info, warn, error, fatal)")
 	flag.StringVar(&c.AuthConf.SecretKey, "k", defaultSecretKey, "secret key for authorization")
 	flag.DurationVar(&c.AuthConf.TokenExpiration, "e", defaultTokenExpiration, "token expiration")
@@ -52,6 +54,8 @@ func (c *Config) GetConfig() {
 	}
 
 	flag.Parse()
+
+	c.AccrualConf.WorkerNum = runtime.NumCPU()
 
 	if serverAddr := os.Getenv("RUN_ADDRESS"); serverAddr != "" {
 		if _, err := strconv.Unquote("\"" + serverAddr + "\""); err != nil {
@@ -74,7 +78,7 @@ func (c *Config) GetConfig() {
 				log.Fatal().Err(err).Msg("Failed to set accrual system address from ACCRUAL_SYSTEM_ADDRESS")
 			}
 		}
-		c.AccrualAddr = accrualAddr
+		c.AccrualConf.AccrualAddr = accrualAddr
 	}
 
 	if logLevelStr := os.Getenv("LOG_LEVEL"); logLevelStr != "" {
