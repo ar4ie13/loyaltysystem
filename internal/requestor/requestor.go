@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-const pollSleepTime = 2 * time.Second
+const pollSleepTime = 1 * time.Second
 
 type Requestor struct {
 	orders     []string
