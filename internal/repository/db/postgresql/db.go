@@ -285,7 +285,7 @@ func (db *DB) GetBalance(ctx context.Context, user uuid.UUID) (models.User, erro
 		db.zlog.Error().Msgf("failed to query user balance: %v", err)
 		return balance, err
 	}
-
+	fmt.Println("get balance", balance)
 	return balance, nil
 }
 

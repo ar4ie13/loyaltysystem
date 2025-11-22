@@ -36,7 +36,7 @@ func (c *Config) GetConfig() {
 	defaultServerAddr := "localhost:8080"
 	defaultDatabaseDSN := ""
 	defaultAccrualAddr := "localhost:8081"
-	defaultLogLevel := zerolog.InfoLevel
+	defaultLogLevel := zerolog.DebugLevel
 	defaultSecretKey := "nHhjHgahbioHBGbBHJ"
 	defaultTokenExpiration := time.Hour * 24
 	defaultPasswordLength := 6
