@@ -9,7 +9,7 @@ import (
 type User struct {
 	UUID         uuid.UUID `json:"uuid" db:"uuid"`
 	Login        string    `json:"login" db:"login"`
-	PasswordHash string    `json:"-" json:"password_hash" db:"password_hash"`
+	PasswordHash string    `json:"-" db:"password_hash"`
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 	Balance      float64   `json:"balance" db:"balance"`

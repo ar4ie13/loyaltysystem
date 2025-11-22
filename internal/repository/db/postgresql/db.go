@@ -109,6 +109,9 @@ func (db *DB) PutUserOrder(ctx context.Context, userUUID uuid.UUID, order string
 	tx, err := db.pool.BeginTx(ctx, pgx.TxOptions{
 		IsoLevel: pgx.ReadCommitted,
 	})
+	if err != nil {
+		return fmt.Errorf("failed to start a transaction: %w", err)
+	}
 
 	row := db.pool.QueryRow(ctx, querySelect, order)
 
@@ -234,6 +237,9 @@ func (db *DB) UpdateOrder(ctx context.Context, orderNum string, status string, a
 		tx, err := db.pool.BeginTx(ctx, pgx.TxOptions{
 			IsoLevel: pgx.ReadCommitted,
 		})
+		if err != nil {
+			return fmt.Errorf("failed to start a transaction: %w", err)
+		}
 
 		queryUpdOrders := `UPDATE  orders  SET accrual = $1, status = $2 WHERE order_num = $3`
 		tag, err := db.pool.Exec(ctx, queryUpdOrders, accrual, status, orderNum)
