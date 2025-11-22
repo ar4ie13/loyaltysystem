@@ -67,7 +67,8 @@ func (r *Requestor) StartWorkers() {
 				r.zlog.Debug().Msgf("too many requests, sleeping for %v seconds...", retryAfter.Seconds())
 				time.Sleep(retryAfter)
 			} else {
-				r.zlog.Debug().Msg("workers finished")
+				r.zlog.Debug().Msgf("workers finished, sleeping %v seconds...", pollSleepTime.Seconds())
+				time.Sleep(pollSleepTime)
 			}
 		}
 	}

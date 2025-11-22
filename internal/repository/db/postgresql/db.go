@@ -275,7 +275,6 @@ func (db *DB) UpdateOrder(ctx context.Context, orderNum string, status string, a
 }
 
 func (db *DB) GetBalance(ctx context.Context, user uuid.UUID) (models.User, error) {
-	fmt.Println("user: ", user)
 	const queryStmt = `SELECT balance, withdrawn FROM users 
                     	WHERE uuid = $1`
 	var balance models.User
@@ -286,7 +285,6 @@ func (db *DB) GetBalance(ctx context.Context, user uuid.UUID) (models.User, erro
 		db.zlog.Error().Msgf("failed to query user balance: %v", err)
 		return balance, err
 	}
-	fmt.Println("get balance", balance)
 	return balance, nil
 }
 
