@@ -97,18 +97,22 @@ func (db *DB) GetUserByLogin(ctx context.Context, login string) (models.User, er
 func (db *DB) PutUserOrder(ctx context.Context, userUUID uuid.UUID, order string) error {
 	const (
 		queryInsert = `
-		INSERT INTO orders (order_num, status, user_uuid) 
-		VALUES ($1, $2, $3)`
+		INSERT INTO orders (order_num, status, user_uuid, created_at)
+		VALUES ($1, $2, $3, $4)`
 
 		querySelect = `
 		SELECT user_uuid FROM ORDERS WHERE order_num = $1`
 	)
 
 	var checkUserUUID uuid.UUID
+	// Begin transaction
+	tx, err := db.pool.BeginTx(ctx, pgx.TxOptions{
+		IsoLevel: pgx.ReadCommitted,
+	})
 
 	row := db.pool.QueryRow(ctx, querySelect, order)
 
-	err := row.Scan(&checkUserUUID)
+	err = row.Scan(&checkUserUUID)
 	if err != nil {
 		switch {
 		case !errors.Is(err, pgx.ErrNoRows):
@@ -125,12 +129,17 @@ func (db *DB) PutUserOrder(ctx context.Context, userUUID uuid.UUID, order string
 		}
 	}
 
-	tag, err := db.pool.Exec(ctx, queryInsert, order, "NEW", userUUID)
+	tag, err := db.pool.Exec(ctx, queryInsert, order, "NEW", userUUID, time.Now())
 	if err != nil {
 		return fmt.Errorf("failed to insert userUUID: %w", err)
 	}
 
 	rowsInserted := tag.RowsAffected()
+
+	// Commit transaction
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
 
 	if rowsInserted == 0 {
 		return apperrors.ErrOrderAlreadyExists
@@ -221,6 +230,11 @@ func (db *DB) UpdateOrder(ctx context.Context, orderNum string, status string, a
 		}
 
 	} else {
+		// Begin transaction
+		tx, err := db.pool.BeginTx(ctx, pgx.TxOptions{
+			IsoLevel: pgx.ReadCommitted,
+		})
+
 		queryUpdOrders := `UPDATE  orders  SET accrual = $1, status = $2 WHERE order_num = $3`
 		tag, err := db.pool.Exec(ctx, queryUpdOrders, accrual, status, orderNum)
 		if err != nil {
@@ -245,6 +259,10 @@ func (db *DB) UpdateOrder(ctx context.Context, orderNum string, status string, a
 			return fmt.Errorf("no rows were updated during user balance update")
 		}
 
+		// Commit transaction
+		if err = tx.Commit(ctx); err != nil {
+			return fmt.Errorf("failed to commit transaction: %w", err)
+		}
 	}
 
 	return nil
@@ -263,4 +281,105 @@ func (db *DB) GetBalance(ctx context.Context, user uuid.UUID) (models.User, erro
 	}
 
 	return balance, nil
+}
+
+func (db *DB) PutUserWithdrawnOrder(ctx context.Context, user uuid.UUID, orderNum string, withdrawn float64) error {
+	const (
+		querySelect = `SELECT balance FROM users WHERE uuid = $1`
+		queryInsert = `INSERT INTO orders (order_num, status, user_uuid, withdrawn, created_at) 
+						VALUES ($1, $2, $3, $4, $5)`
+		queryUpdate = `UPDATE users  SET withdrawn = withdrawn + $1, balance = balance - $1, updated_at = $2
+              WHERE uuid = $3`
+	)
+
+	// Begin transaction
+	tx, err := db.pool.BeginTx(ctx, pgx.TxOptions{
+		IsoLevel: pgx.ReadCommitted,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	// Checking user balance
+	var balance models.User
+	row := db.pool.QueryRow(ctx, querySelect, user)
+	err = row.Scan(&balance.Balance)
+	if err != nil {
+		db.zlog.Error().Msgf("failed to query user balance: %v", err)
+		return err
+	}
+
+	if balance.Balance < withdrawn {
+		return apperrors.ErrBalanceNotEnough
+	}
+
+	// Inserting order
+	tag, err := db.pool.Exec(ctx, queryInsert, orderNum, "PROCESSED", user, withdrawn, time.Now())
+	if err != nil {
+		return fmt.Errorf("failed to insert order balance: %w", err)
+	}
+
+	rowsInserted := tag.RowsAffected()
+
+	if rowsInserted == 0 {
+		return fmt.Errorf("no rows were updated during order insert")
+	}
+
+	// Updating user balance
+	tag, err = db.pool.Exec(ctx, queryUpdate, withdrawn, time.Now(), user)
+	if err != nil {
+		return fmt.Errorf("failed to update user balance: %w", err)
+	}
+
+	rowsInserted = tag.RowsAffected()
+
+	if rowsInserted == 0 {
+		return fmt.Errorf("no rows were updated during user balance update")
+	}
+
+	// Commit transaction
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (db *DB) GetUserWithdrawals(ctx context.Context, userUUID uuid.UUID) ([]models.Order, error) {
+	const queryStmt = `SELECT order_num, withdrawn, created_at FROM orders 
+                    	WHERE user_uuid = $1 AND withdrawn IS NOT NULL ORDER BY created_at DESC`
+
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		db.zlog.Debug().Msgf("request execution duration: %s", elapsed)
+	}()
+
+	rows, err := db.pool.Query(ctx, queryStmt, userUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []models.Order
+
+	for rows.Next() {
+		var order models.Order
+
+		err = rows.Scan(&order.OrderNumber, &order.Withdrawn, &order.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		orders = append(orders, order)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(orders) == 0 {
+		return nil, apperrors.ErrNoOrders
+	}
+
+	return orders, nil
 }

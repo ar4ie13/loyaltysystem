@@ -20,6 +20,7 @@ type Order struct {
 	OrderNumber string    `json:"number" db:"order_num"`
 	Status      string    `json:"status" db:"status"`
 	Accrual     *float64  `json:"accrual" db:"accrual"`
+	Withdrawn   *float64  `json:"withdrawn" db:"withdrawn"`
 	UserUUID    uuid.UUID `json:"user_uuid" db:"user_uuid"`
 	CreatedAt   time.Time `json:"uploaded_at" db:"created_at"`
 }

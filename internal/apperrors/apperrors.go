@@ -14,4 +14,5 @@ var (
 	ErrIncorrectOrderNumber   = errors.New("incorrect order number")
 	ErrOrderNumberAlreadyUsed = errors.New("order number is already used")
 	ErrNoOrders               = errors.New("no orders found")
+	ErrBalanceNotEnough       = errors.New("balance not enough")
 )

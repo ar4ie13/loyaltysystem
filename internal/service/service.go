@@ -30,6 +30,8 @@ type Repository interface {
 	PutUserOrder(ctx context.Context, user uuid.UUID, order string) error
 	GetUserOrders(ctx context.Context, userUUID uuid.UUID) ([]models.Order, error)
 	GetBalance(ctx context.Context, user uuid.UUID) (models.User, error)
+	PutUserWithdrawnOrder(ctx context.Context, user uuid.UUID, orderNum string, withdrawn float64) error
+	GetUserWithdrawals(ctx context.Context, userUUID uuid.UUID) ([]models.Order, error)
 }
 
 func (s *Service) checkLoginString(login string) bool {
@@ -139,4 +141,35 @@ func (s *Service) GetBalance(ctx context.Context, user uuid.UUID) (models.User, 
 		return balance, err
 	}
 	return balance, nil
+}
+
+func (s *Service) PutUserWithdrawnOrder(ctx context.Context, user uuid.UUID, orderNum string, withdrawn float64) error {
+	if withdrawn <= 0 {
+		return fmt.Errorf("withdrawn must be greater than zero")
+	}
+
+	if user == uuid.Nil {
+		return apperrors.ErrInvalidUserUUID
+	}
+
+	if !s.checkOrderNumber(orderNum) {
+		return apperrors.ErrIncorrectOrderNumber
+	}
+
+	if err := s.repo.PutUserWithdrawnOrder(ctx, user, orderNum, withdrawn); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Service) GetUserWithdrawals(ctx context.Context, userUUID uuid.UUID) ([]models.Order, error) {
+	if userUUID == uuid.Nil {
+		return nil, apperrors.ErrInvalidUserUUID
+	}
+	orders, err := s.repo.GetUserWithdrawals(ctx, userUUID)
+	if err != nil {
+		return nil, err
+	}
+	return orders, nil
 }

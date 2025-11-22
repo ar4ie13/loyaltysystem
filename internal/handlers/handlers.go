@@ -45,6 +45,8 @@ type Service interface {
 	PutUserOrder(ctx context.Context, user uuid.UUID, order string) error
 	GetUserOrders(ctx context.Context, userUUID uuid.UUID) ([]models.Order, error)
 	GetBalance(ctx context.Context, user uuid.UUID) (models.User, error)
+	PutUserWithdrawnOrder(ctx context.Context, user uuid.UUID, orderNum string, withdrawn float64) error
+	GetUserWithdrawals(ctx context.Context, userUUID uuid.UUID) ([]models.Order, error)
 }
 
 func (h *Handlers) ListenAndServe() error {
@@ -78,6 +80,8 @@ func (h *Handlers) newRouter() *gin.Engine {
 		user.POST("/orders", h.postOrder)
 		user.GET("/orders", h.getUserOrders)
 		user.GET("/balance", h.getUserBalance)
+		user.POST("/balance/withdraw", h.postOrderWithWithdrawn)
+		user.GET("/withdrawals", h.getUserWithdrawals)
 	}
 	return router
 }
@@ -343,6 +347,96 @@ func (h *Handlers) getUserBalance(c *gin.Context) {
 	userBal.Balance = balance.Balance
 	userBal.Withdrawn = balance.Withdrawn
 	c.JSON(http.StatusOK, userBal)
+
+	return
+}
+
+func (h *Handlers) postOrderWithWithdrawn(c *gin.Context) {
+
+	userUUID, err := h.getUserUUIDFromRequest(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "invalid request body",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Bind JSON to struct
+	var orderWithWithdrawn orderWithWithdrawn
+	if err = c.ShouldBindJSON(&orderWithWithdrawn); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "invalid request body",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	err = h.srv.PutUserWithdrawnOrder(c, userUUID, orderWithWithdrawn.Order, orderWithWithdrawn.Sum)
+	if err != nil {
+		switch {
+		case errors.Is(err, apperrors.ErrBalanceNotEnough):
+			c.JSON(http.StatusPaymentRequired, gin.H{
+				"error":   "unable to perform withdrawn",
+				"details": err.Error(),
+			})
+			return
+		case errors.Is(err, apperrors.ErrIncorrectOrderNumber):
+			c.JSON(http.StatusUnprocessableEntity, gin.H{
+				"error":   "cannot register order",
+				"details": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "cannot register order",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "order successfully registered",
+		"order":   orderWithWithdrawn.Order,
+	})
+	return
+}
+
+func (h *Handlers) getUserWithdrawals(c *gin.Context) {
+	userUUID, err := h.getUserUUIDFromRequest(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "invalid request body",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	orders, err := h.srv.GetUserWithdrawals(c, userUUID)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrNoOrders) {
+			c.JSON(http.StatusNoContent, gin.H{
+				"message": "no orders found",
+			})
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "cannot get user balance",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	var ordersResponse []orderWithWithdrawn
+	for _, order := range orders {
+		var orderResponse orderWithWithdrawn
+		orderResponse.Order = order.OrderNumber
+		if order.Withdrawn != nil {
+			orderResponse.Sum = *order.Withdrawn
+		}
+		orderResponse.ProcessedAt = order.CreatedAt.Format(time.RFC3339)
+		ordersResponse = append(ordersResponse, orderResponse)
+	}
+	c.JSON(http.StatusOK, ordersResponse)
 
 	return
 }
