@@ -85,7 +85,7 @@ func (r *Requestor) executeRequestWorker(ctx context.Context, wg *sync.WaitGroup
 	r.zlog.Debug().Msgf("worker %d processing order %s", id, r.orders[id])
 
 	client := resty.New()
-	resp, err := client.R().Get("http://" + r.conf.AccrualAddr + "/api/orders/" + r.orders[id])
+	resp, err := client.R().Get(r.conf.AccrualAddr + "/api/orders/" + r.orders[id])
 	if err != nil {
 		r.zlog.Err(err).Msgf("worker %d unable to process order %s", id, r.orders[id])
 		return
