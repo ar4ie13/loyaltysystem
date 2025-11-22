@@ -151,7 +151,6 @@ func (h *Handlers) userRegister(c *gin.Context) {
 		"message": "user successfully registered",
 		"login":   registerReq.Login,
 	})
-	return
 }
 
 func (h *Handlers) userLogin(c *gin.Context) {
@@ -194,8 +193,6 @@ func (h *Handlers) userLogin(c *gin.Context) {
 		"message": "user successfully logged in",
 		"login":   loginReq.Login,
 	})
-
-	return
 }
 
 func (h *Handlers) testAuth(c *gin.Context) {
@@ -210,7 +207,6 @@ func (h *Handlers) testAuth(c *gin.Context) {
 		"message":   "user orders: void",
 		"user_uuid": userUUID,
 	})
-	return
 }
 
 func (h *Handlers) getUserUUIDFromRequest(c *gin.Context) (uuid.UUID, error) {
@@ -280,7 +276,6 @@ func (h *Handlers) postOrder(c *gin.Context) {
 		"message": "order successfully registered",
 		"order":   string(order),
 	})
-	return
 }
 
 func (h *Handlers) getUserOrders(c *gin.Context) {
@@ -320,8 +315,6 @@ func (h *Handlers) getUserOrders(c *gin.Context) {
 		ordersResponse = append(ordersResponse, orderResponse)
 	}
 	c.JSON(http.StatusOK, ordersResponse)
-
-	return
 }
 
 func (h *Handlers) getUserBalance(c *gin.Context) {
@@ -347,8 +340,6 @@ func (h *Handlers) getUserBalance(c *gin.Context) {
 	userBal.Balance = balance.Balance
 	userBal.Withdrawn = balance.Withdrawn
 	c.JSON(http.StatusOK, userBal)
-
-	return
 }
 
 func (h *Handlers) postOrderWithWithdrawn(c *gin.Context) {
@@ -399,7 +390,6 @@ func (h *Handlers) postOrderWithWithdrawn(c *gin.Context) {
 		"message": "order successfully registered",
 		"order":   orderWithWithdrawn.Order,
 	})
-	return
 }
 
 func (h *Handlers) getUserWithdrawals(c *gin.Context) {
@@ -437,6 +427,4 @@ func (h *Handlers) getUserWithdrawals(c *gin.Context) {
 		ordersResponse = append(ordersResponse, orderResponse)
 	}
 	c.JSON(http.StatusOK, ordersResponse)
-
-	return
 }
