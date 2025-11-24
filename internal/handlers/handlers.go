@@ -14,6 +14,16 @@ import (
 	"github.com/rs/zerolog"
 )
 
+var errorStatusMap = map[error]int{
+	apperrors.ErrBalanceNotEnough:       http.StatusPaymentRequired,
+	apperrors.ErrUserAlreadyExists:      http.StatusConflict,
+	apperrors.ErrNoOrders:               http.StatusNoContent,
+	apperrors.ErrPasswordMinSymbols:     http.StatusBadRequest,
+	apperrors.ErrOrderAlreadyExists:     http.StatusOK,
+	apperrors.ErrIncorrectOrderNumber:   http.StatusUnprocessableEntity,
+	apperrors.ErrOrderNumberAlreadyUsed: http.StatusConflict,
+}
+
 type Handlers struct {
 	cfg  config.ServerConf
 	auth Auth
@@ -28,6 +38,22 @@ func NewHandlers(cfg config.ServerConf, auth Auth, srv Service, zlog zerolog.Log
 		srv:  srv,
 		zlog: zlog,
 	}
+}
+
+// getStatusCode process error and return the correlated status code
+func (h *Handlers) getStatusCode(err error) int {
+	// fast error check
+	if status, exists := errorStatusMap[err]; exists {
+		return status
+	}
+
+	// For wrapped errors
+	for errType, status := range errorStatusMap {
+		if errors.Is(err, errType) {
+			return status
+		}
+	}
+	return http.StatusInternalServerError
 }
 
 // Auth used for authentication
@@ -87,7 +113,7 @@ func (h *Handlers) newRouter() *gin.Engine {
 		userGzip.GET("/orders", h.getUserOrders)
 		userGzip.GET("/withdrawals", h.getUserWithdrawals)
 	}
-	
+
 	return router
 }
 
@@ -106,17 +132,10 @@ func (h *Handlers) userRegister(c *gin.Context) {
 	// Process the register data
 	passwordHash, err := h.auth.GenerateHashFromPassword(registerReq.Password)
 	if err != nil {
-		if errors.Is(err, apperrors.ErrPasswordMinSymbols) {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error":   "cannot generate hash from password",
-				"details": err.Error(),
-			})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":   "cannot generate hash from password",
-				"details": err.Error(),
-			})
-		}
+		c.JSON(h.getStatusCode(err), gin.H{
+			"error":   "cannot generate hash from password",
+			"details": err.Error(),
+		})
 		return
 	}
 
@@ -128,19 +147,10 @@ func (h *Handlers) userRegister(c *gin.Context) {
 
 	err = h.srv.CreateUser(c, user)
 	if err != nil {
-		if errors.Is(err, apperrors.ErrUserAlreadyExists) {
-			c.JSON(http.StatusConflict, gin.H{
-				"error":   "cannot create user",
-				"details": err.Error(),
-			})
-
-		} else {
-
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":   "cannot create user",
-				"details": err.Error(),
-			})
-		}
+		c.JSON(h.getStatusCode(err), gin.H{
+			"error":   "cannot create user",
+			"details": err.Error(),
+		})
 		return
 	}
 
@@ -251,26 +261,7 @@ func (h *Handlers) postOrder(c *gin.Context) {
 
 	err = h.srv.PutUserOrder(c, userUUID, string(order))
 	if err != nil {
-		switch {
-		case errors.Is(err, apperrors.ErrOrderAlreadyExists):
-			c.JSON(http.StatusOK, gin.H{
-				"message": "order already exists",
-			})
-			return
-		case errors.Is(err, apperrors.ErrIncorrectOrderNumber):
-			c.JSON(http.StatusUnprocessableEntity, gin.H{
-				"error":   "cannot register order",
-				"details": err.Error(),
-			})
-			return
-		case errors.Is(err, apperrors.ErrOrderNumberAlreadyUsed):
-			c.JSON(http.StatusConflict, gin.H{
-				"error":   "cannot register order",
-				"details": err.Error(),
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
+		c.JSON(h.getStatusCode(err), gin.H{
 			"error":   "cannot register order",
 			"details": err.Error(),
 		})
@@ -295,19 +286,11 @@ func (h *Handlers) getUserOrders(c *gin.Context) {
 
 	orders, err := h.srv.GetUserOrders(c, userUUID)
 	if err != nil {
-		switch {
-		case errors.Is(err, apperrors.ErrNoOrders):
-			c.JSON(http.StatusNoContent, gin.H{
-				"message": "no orders found",
-			})
-			return
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":   "cannot get orders",
-				"details": err.Error(),
-			})
-			return
-		}
+		c.JSON(h.getStatusCode(err), gin.H{
+			"error":   "cannot get orders",
+			"details": err.Error(),
+		})
+		return
 	}
 
 	var ordersResponse []userOrdersResponse
@@ -370,21 +353,7 @@ func (h *Handlers) postOrderWithWithdrawn(c *gin.Context) {
 
 	err = h.srv.PutUserWithdrawnOrder(c, userUUID, orderWithWithdrawn.Order, orderWithWithdrawn.Sum)
 	if err != nil {
-		switch {
-		case errors.Is(err, apperrors.ErrBalanceNotEnough):
-			c.JSON(http.StatusPaymentRequired, gin.H{
-				"error":   "unable to perform withdrawn",
-				"details": err.Error(),
-			})
-			return
-		case errors.Is(err, apperrors.ErrIncorrectOrderNumber):
-			c.JSON(http.StatusUnprocessableEntity, gin.H{
-				"error":   "cannot register order",
-				"details": err.Error(),
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
+		c.JSON(h.getStatusCode(err), gin.H{
 			"error":   "cannot register order",
 			"details": err.Error(),
 		})
@@ -409,12 +378,7 @@ func (h *Handlers) getUserWithdrawals(c *gin.Context) {
 
 	orders, err := h.srv.GetUserWithdrawals(c, userUUID)
 	if err != nil {
-		if errors.Is(err, apperrors.ErrNoOrders) {
-			c.JSON(http.StatusNoContent, gin.H{
-				"message": "no orders found",
-			})
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
+		c.JSON(h.getStatusCode(err), gin.H{
 			"error":   "cannot get user balance",
 			"details": err.Error(),
 		})
