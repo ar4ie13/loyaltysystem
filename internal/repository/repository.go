@@ -9,6 +9,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// NewRepository creates repository object
 func NewRepository(ctx context.Context, conf config.PGConf, zlog zerolog.Logger) (*postgresql.DB, error) {
 	repo, err := postgresql.NewDB(ctx, conf, zlog)
 	if err != nil {

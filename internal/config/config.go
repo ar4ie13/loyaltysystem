@@ -17,6 +17,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Config is a main configuration object
 type Config struct {
 	AuthConf    authconf.Config
 	ServerConf  serverconf.ServerConf
@@ -25,12 +26,15 @@ type Config struct {
 	LogConf     logconf.LogLevel
 }
 
+// NewConfig creates new Config configuration object
 func NewConfig() *Config {
 	c := &Config{}
 	c.GetConfig()
+
 	return c
 }
 
+// GetConfig parses flags and environment variables for service configuration
 func (c *Config) GetConfig() {
 
 	defaultServerAddr := "localhost:8080"

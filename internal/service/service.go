@@ -12,11 +12,13 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// Service is a main object of service layer
 type Service struct {
 	repo Repository
 	zlog zerolog.Logger
 }
 
+// NewService constructs new service object
 func NewService(repo Repository, zlog zerolog.Logger) *Service {
 	return &Service{
 		repo: repo,
@@ -24,6 +26,7 @@ func NewService(repo Repository, zlog zerolog.Logger) *Service {
 	}
 }
 
+// Repository interface used to communicate with repository from service
 type Repository interface {
 	CreateUser(ctx context.Context, user models.User) error
 	GetUserByLogin(ctx context.Context, login string) (models.User, error)
@@ -34,6 +37,7 @@ type Repository interface {
 	GetUserWithdrawals(ctx context.Context, userUUID uuid.UUID) ([]models.Order, error)
 }
 
+// checkLoginString is a helper to validate login string
 func (s *Service) checkLoginString(login string) bool {
 	// Check that only letters and digits are used for login
 	for _, char := range login {
@@ -43,9 +47,11 @@ func (s *Service) checkLoginString(login string) bool {
 			return false
 		}
 	}
+
 	return true
 }
 
+// CreateUser used to create user by provided login and password hashed at handler's layer
 func (s *Service) CreateUser(ctx context.Context, user models.User) error {
 
 	if !s.checkLoginString(user.Login) {
@@ -60,6 +66,7 @@ func (s *Service) CreateUser(ctx context.Context, user models.User) error {
 	return nil
 }
 
+// LoginUser used for logging users in
 func (s *Service) LoginUser(ctx context.Context, login string) (models.User, error) {
 	if !s.checkLoginString(login) {
 		return models.User{}, apperrors.ErrInvalidLoginString
@@ -73,6 +80,7 @@ func (s *Service) LoginUser(ctx context.Context, login string) (models.User, err
 	return user, nil
 }
 
+// PutUserOrder used to register user's order without withdrawn
 func (s *Service) PutUserOrder(ctx context.Context, user uuid.UUID, order string) error {
 	if !s.checkOrderNumber(order) {
 		return apperrors.ErrIncorrectOrderNumber
@@ -122,6 +130,7 @@ func (s *Service) checkOrderNumber(order string) bool {
 	return sum%10 == 0
 }
 
+// GetUserOrders return all registered user's orders
 func (s *Service) GetUserOrders(ctx context.Context, userUUID uuid.UUID) ([]models.Order, error) {
 	if userUUID == uuid.Nil {
 		return nil, apperrors.ErrInvalidUserUUID
@@ -134,6 +143,7 @@ func (s *Service) GetUserOrders(ctx context.Context, userUUID uuid.UUID) ([]mode
 	return orders, nil
 }
 
+// GetBalance return user's balance
 func (s *Service) GetBalance(ctx context.Context, user uuid.UUID) (models.User, error) {
 	var balance models.User
 	balance, err := s.repo.GetBalance(ctx, user)
@@ -143,6 +153,7 @@ func (s *Service) GetBalance(ctx context.Context, user uuid.UUID) (models.User, 
 	return balance, nil
 }
 
+// PutUserWithdrawnOrder used for registering user's order with withdrawn
 func (s *Service) PutUserWithdrawnOrder(ctx context.Context, user uuid.UUID, orderNum string, withdrawn float64) error {
 	if withdrawn <= 0 {
 		return fmt.Errorf("withdrawn must be greater than zero")
@@ -163,6 +174,7 @@ func (s *Service) PutUserWithdrawnOrder(ctx context.Context, user uuid.UUID, ord
 	return nil
 }
 
+// GetUserWithdrawals returns all user's orders with withdrawn
 func (s *Service) GetUserWithdrawals(ctx context.Context, userUUID uuid.UUID) ([]models.Order, error) {
 	if userUUID == uuid.Nil {
 		return nil, apperrors.ErrInvalidUserUUID

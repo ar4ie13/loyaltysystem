@@ -55,6 +55,7 @@ func (db *DB) Close() error {
 	return nil
 }
 
+// CreateUser stores user information to the db
 func (db *DB) CreateUser(ctx context.Context, user models.User) error {
 	const query = `
 		INSERT INTO users (uuid, login, password_hash, created_at, updated_at) 
@@ -74,6 +75,7 @@ func (db *DB) CreateUser(ctx context.Context, user models.User) error {
 	return nil
 }
 
+// GetUserByLogin retrieves user information from db
 func (db *DB) GetUserByLogin(ctx context.Context, login string) (models.User, error) {
 	const query = `SELECT uuid, login, password_hash, created_at, updated_at from users where login=$1`
 
@@ -94,6 +96,7 @@ func (db *DB) GetUserByLogin(ctx context.Context, login string) (models.User, er
 	return user, nil
 }
 
+// PutUserOrder stores user's order without withdrawn to the db
 func (db *DB) PutUserOrder(ctx context.Context, userUUID uuid.UUID, order string) error {
 	const (
 		queryInsert = `
@@ -151,6 +154,7 @@ func (db *DB) PutUserOrder(ctx context.Context, userUUID uuid.UUID, order string
 	return nil
 }
 
+// GetUserOrders retrieves all user's orders from db
 func (db *DB) GetUserOrders(ctx context.Context, userUUID uuid.UUID) ([]models.Order, error) {
 	const queryStmt = `SELECT order_num, status, accrual, user_uuid, created_at FROM orders 
                     	WHERE user_uuid = $1 ORDER BY created_at DESC`
@@ -190,6 +194,7 @@ func (db *DB) GetUserOrders(ctx context.Context, userUUID uuid.UUID) ([]models.O
 	return orders, nil
 }
 
+// GetUnprocessedOrders retrieves orders withoud final status from db, used by requestor service
 func (db *DB) GetUnprocessedOrders(ctx context.Context, limit int) ([]string, error) {
 	const query = `SELECT order_num FROM orders WHERE status IN ('NEW', 'PROCESSING') ORDER BY created_at ASC LIMIT $1`
 
@@ -218,6 +223,7 @@ func (db *DB) GetUnprocessedOrders(ctx context.Context, limit int) ([]string, er
 	return orderNums, nil
 }
 
+// UpdateOrderWithoutAccrual updates status for orders without accrual, used by requestor service
 func (db *DB) UpdateOrderWithoutAccrual(ctx context.Context, orderNum string, status string) error {
 
 	queryUpdOrders := `UPDATE orders  SET status = $1 WHERE order_num = $2`
@@ -235,6 +241,7 @@ func (db *DB) UpdateOrderWithoutAccrual(ctx context.Context, orderNum string, st
 	return nil
 }
 
+// UpdateOrderWithAccrual updates status for orders with accrual, used by requestor service
 func (db *DB) UpdateOrderWithAccrual(ctx context.Context, orderNum string, status string, accrual float64) error {
 	// Begin transaction
 	tx, err := db.pool.BeginTx(ctx, pgx.TxOptions{
@@ -272,10 +279,11 @@ func (db *DB) UpdateOrderWithAccrual(ctx context.Context, orderNum string, statu
 	if err = tx.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
-	
+
 	return nil
 }
 
+// GetBalance retrieves user's balance from db
 func (db *DB) GetBalance(ctx context.Context, user uuid.UUID) (models.User, error) {
 	const queryStmt = `SELECT balance, withdrawn FROM users 
                     	WHERE uuid = $1`
@@ -290,6 +298,7 @@ func (db *DB) GetBalance(ctx context.Context, user uuid.UUID) (models.User, erro
 	return balance, nil
 }
 
+// PutUserWithdrawnOrder stores user's order with withdrawn to the db
 func (db *DB) PutUserWithdrawnOrder(ctx context.Context, user uuid.UUID, orderNum string, withdrawn float64) error {
 	const (
 		querySelect = `SELECT balance FROM users WHERE uuid = $1 FOR UPDATE`
@@ -352,6 +361,7 @@ func (db *DB) PutUserWithdrawnOrder(ctx context.Context, user uuid.UUID, orderNu
 	return nil
 }
 
+// GetUserWithdrawals retrieves all users withdrawals from the db
 func (db *DB) GetUserWithdrawals(ctx context.Context, userUUID uuid.UUID) ([]models.Order, error) {
 	const queryStmt = `SELECT order_num, withdrawn, created_at FROM orders 
                     	WHERE user_uuid = $1 AND withdrawn IS NOT NULL ORDER BY created_at DESC`

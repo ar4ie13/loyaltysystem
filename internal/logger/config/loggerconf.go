@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// LogLevel used for logger configuration
 type LogLevel struct {
 	Level zerolog.Level
 }

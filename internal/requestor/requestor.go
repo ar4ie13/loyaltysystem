@@ -13,8 +13,11 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// pollSleepTime used for configuring sleep time when there is no unprocessed orders
 const pollSleepTime = 1 * time.Second
 
+// Requestor is a mian object for requestor service, that is used for processing orders
+// and communication with accrual service
 type Requestor struct {
 	orders     []string
 	conf       config.ReqConf
@@ -23,12 +26,14 @@ type Requestor struct {
 	retryAfter int
 }
 
+// Repository interface used by requestor service
 type Repository interface {
 	GetUnprocessedOrders(ctx context.Context, limit int) ([]string, error)
 	UpdateOrderWithoutAccrual(ctx context.Context, orderNum string, status string) error
 	UpdateOrderWithAccrual(ctx context.Context, orderNum string, status string, accrual float64) error
 }
 
+// NewRequestor creates requestor service object
 func NewRequestor(conf config.ReqConf, zlog zerolog.Logger, repo Repository) *Requestor {
 	r := &Requestor{
 		orders:     make([]string, 0),
@@ -41,6 +46,7 @@ func NewRequestor(conf config.ReqConf, zlog zerolog.Logger, repo Repository) *Re
 	return r
 }
 
+// StartWorkers starts workers to process unprocessed orders, used as a goroutine in requestor service
 func (r *Requestor) StartWorkers() {
 	for {
 		var err error
@@ -75,6 +81,7 @@ func (r *Requestor) StartWorkers() {
 	}
 }
 
+// executeRequestWorker is a single worker used by requestor service to process unprocessed orders
 func (r *Requestor) executeRequestWorker(ctx context.Context, wg *sync.WaitGroup, id int, cancel context.CancelFunc) {
 	defer wg.Done()
 	select {

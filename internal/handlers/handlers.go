@@ -24,6 +24,7 @@ var errorStatusMap = map[error]int{
 	apperrors.ErrOrderNumberAlreadyUsed: http.StatusConflict,
 }
 
+// Handlers is a main object for handlers layer
 type Handlers struct {
 	cfg  config.ServerConf
 	auth Auth
@@ -31,6 +32,7 @@ type Handlers struct {
 	zlog zerolog.Logger
 }
 
+// NewHandlers creates Handler object
 func NewHandlers(cfg config.ServerConf, auth Auth, srv Service, zlog zerolog.Logger) *Handlers {
 	return &Handlers{
 		cfg:  cfg,
@@ -65,6 +67,7 @@ type Auth interface {
 	CheckPasswordHash(password, hash string) bool
 }
 
+// Service interface used in handlers layer
 type Service interface {
 	LoginUser(ctx context.Context, login string) (models.User, error)
 	CreateUser(ctx context.Context, user models.User) error
@@ -75,6 +78,7 @@ type Service interface {
 	GetUserWithdrawals(ctx context.Context, userUUID uuid.UUID) ([]models.Order, error)
 }
 
+// ListenAndServe starts server
 func (h *Handlers) ListenAndServe() error {
 	router := h.newRouter()
 
@@ -87,6 +91,7 @@ func (h *Handlers) ListenAndServe() error {
 	return nil
 }
 
+// newRouter contains all routes used by server
 func (h *Handlers) newRouter() *gin.Engine {
 	router := gin.New()
 
@@ -117,6 +122,7 @@ func (h *Handlers) newRouter() *gin.Engine {
 	return router
 }
 
+// userRegister is a handler used for user registration by using provided login and password
 func (h *Handlers) userRegister(c *gin.Context) {
 	var registerReq registerRequest
 
@@ -168,6 +174,7 @@ func (h *Handlers) userRegister(c *gin.Context) {
 	})
 }
 
+// userLogin is a handler used for users logging in
 func (h *Handlers) userLogin(c *gin.Context) {
 	var loginReq loginRequest
 
@@ -210,6 +217,7 @@ func (h *Handlers) userLogin(c *gin.Context) {
 	})
 }
 
+// testAuth used for testing authentication middleware
 func (h *Handlers) testAuth(c *gin.Context) {
 	userUUID, ok := c.Get("user_uuid")
 	if !ok {
@@ -224,6 +232,7 @@ func (h *Handlers) testAuth(c *gin.Context) {
 	})
 }
 
+// getUserUUIDFromRequest is a helper that retrieves user UUID from request
 func (h *Handlers) getUserUUIDFromRequest(c *gin.Context) (uuid.UUID, error) {
 	user, ok := c.Get("user_uuid")
 	if !ok {
@@ -239,6 +248,7 @@ func (h *Handlers) getUserUUIDFromRequest(c *gin.Context) (uuid.UUID, error) {
 	return userUUID, nil
 }
 
+// postOrder is a handler used for posting order provided by user in request without withdrawn
 func (h *Handlers) postOrder(c *gin.Context) {
 
 	userUUID, err := h.getUserUUIDFromRequest(c)
@@ -274,6 +284,7 @@ func (h *Handlers) postOrder(c *gin.Context) {
 	})
 }
 
+// getUserOrders is a handler that returns all user's orders
 func (h *Handlers) getUserOrders(c *gin.Context) {
 	userUUID, err := h.getUserUUIDFromRequest(c)
 	if err != nil {
@@ -305,6 +316,7 @@ func (h *Handlers) getUserOrders(c *gin.Context) {
 	c.JSON(http.StatusOK, ordersResponse)
 }
 
+// getUserBalance is a handler that return user's balance
 func (h *Handlers) getUserBalance(c *gin.Context) {
 	userUUID, err := h.getUserUUIDFromRequest(c)
 	if err != nil {
@@ -330,6 +342,7 @@ func (h *Handlers) getUserBalance(c *gin.Context) {
 	c.JSON(http.StatusOK, userBal)
 }
 
+// postOrderWithWithdrawn is a handler that post order with withdrawn
 func (h *Handlers) postOrderWithWithdrawn(c *gin.Context) {
 
 	userUUID, err := h.getUserUUIDFromRequest(c)
@@ -366,6 +379,7 @@ func (h *Handlers) postOrderWithWithdrawn(c *gin.Context) {
 	})
 }
 
+// getUserWithdrawals is a handler that returns all user's withdrawals
 func (h *Handlers) getUserWithdrawals(c *gin.Context) {
 	userUUID, err := h.getUserUUIDFromRequest(c)
 	if err != nil {

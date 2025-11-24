@@ -12,11 +12,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// Auth is a main object for authentication service
 type Auth struct {
 	Claims Claims
 	conf   authconf.Config
 }
 
+// Claims object for Auth that contain registered claims and user UUID
 type Claims struct {
 	jwt.RegisteredClaims
 	UserUUID uuid.UUID
@@ -88,17 +90,21 @@ func (a Auth) parseTokenString(tokenString string) (*Claims, *jwt.Token, error) 
 	if err != nil {
 		return claims, token, err
 	}
+	
 	return claims, token, nil
 }
 
+// GenerateHashFromPassword generates hash from provided password
 func (a Auth) GenerateHashFromPassword(password string) (string, error) {
 	if len(password) < a.conf.PasswordLen {
 		return "", fmt.Errorf("%w: should be %d", apperrors.ErrPasswordMinSymbols, a.conf.PasswordLen)
 	}
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+
 	return string(bytes), err
 }
 
+// CheckPasswordHash validates password by comparing it with saved hash
 func (a Auth) CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 
