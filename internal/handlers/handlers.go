@@ -87,6 +87,7 @@ func (h *Handlers) newRouter() *gin.Engine {
 		userGzip.GET("/orders", h.getUserOrders)
 		userGzip.GET("/withdrawals", h.getUserWithdrawals)
 	}
+	
 	return router
 }
 
