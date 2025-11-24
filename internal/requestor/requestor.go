@@ -25,7 +25,8 @@ type Requestor struct {
 
 type Repository interface {
 	GetUnprocessedOrders(ctx context.Context, limit int) ([]string, error)
-	UpdateOrder(ctx context.Context, orderNum string, status string, accrual float64) error
+	UpdateOrderWithoutAccrual(ctx context.Context, orderNum string, status string) error
+	UpdateOrderWithAccrual(ctx context.Context, orderNum string, status string, accrual float64) error
 }
 
 func NewRequestor(conf config.ReqConf, zlog zerolog.Logger, repo Repository) *Requestor {
@@ -100,11 +101,15 @@ func (r *Requestor) executeRequestWorker(ctx context.Context, wg *sync.WaitGroup
 			}
 			var accrual float64
 			if accrualResponse.Accrual == nil {
-				accrual = 0
+				err = r.repo.UpdateOrderWithoutAccrual(ctx, accrualResponse.OrderNumber, accrualResponse.Status)
+				if err != nil {
+					r.zlog.Err(err).Msg("unable to update order")
+					return
+				}
 			} else {
 				accrual = *accrualResponse.Accrual
 			}
-			err = r.repo.UpdateOrder(ctx, accrualResponse.OrderNumber, accrualResponse.Status, accrual)
+			err = r.repo.UpdateOrderWithAccrual(ctx, accrualResponse.OrderNumber, accrualResponse.Status, accrual)
 			if err != nil {
 				r.zlog.Err(err).Msg("unable to update order")
 				return

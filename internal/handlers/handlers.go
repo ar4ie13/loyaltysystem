@@ -78,10 +78,14 @@ func (h *Handlers) newRouter() *gin.Engine {
 	{
 		user.GET("/test", h.testAuth)
 		user.POST("/orders", h.postOrder)
-		user.GET("/orders", h.getUserOrders)
 		user.GET("/balance", h.getUserBalance)
 		user.POST("/balance/withdraw", h.postOrderWithWithdrawn)
-		user.GET("/withdrawals", h.getUserWithdrawals)
+	}
+
+	userGzip := router.Group("/api/user").Use(h.authMiddleware()).Use(h.gzipMiddleware())
+	{
+		userGzip.GET("/orders", h.getUserOrders)
+		userGzip.GET("/withdrawals", h.getUserWithdrawals)
 	}
 	return router
 }

@@ -218,59 +218,61 @@ func (db *DB) GetUnprocessedOrders(ctx context.Context, limit int) ([]string, er
 	return orderNums, nil
 }
 
-func (db *DB) UpdateOrder(ctx context.Context, orderNum string, status string, accrual float64) error {
-	if accrual == 0 {
-		queryUpdOrders := `UPDATE orders  SET status = $1 WHERE order_num = $2`
-		tag, err := db.pool.Exec(ctx, queryUpdOrders, status, orderNum)
-		if err != nil {
-			return fmt.Errorf("failed to update order: %w", err)
-		}
+func (db *DB) UpdateOrderWithoutAccrual(ctx context.Context, orderNum string, status string) error {
 
-		rowsInserted := tag.RowsAffected()
-
-		if rowsInserted == 0 {
-			return fmt.Errorf("no rows were updated")
-		}
-
-	} else {
-		// Begin transaction
-		tx, err := db.pool.BeginTx(ctx, pgx.TxOptions{
-			IsoLevel: pgx.ReadCommitted,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to start a transaction: %w", err)
-		}
-
-		queryUpdOrders := `UPDATE  orders  SET accrual = $1, status = $2 WHERE order_num = $3`
-		tag, err := db.pool.Exec(ctx, queryUpdOrders, accrual, status, orderNum)
-		if err != nil {
-			return fmt.Errorf("failed to update order: %w", err)
-		}
-
-		rowsInserted := tag.RowsAffected()
-
-		if rowsInserted == 0 {
-			return fmt.Errorf("no rows were updated during order update")
-		}
-
-		queryUpdUsers := `UPDATE  users  SET balance = balance + $1, updated_at = $2  WHERE uuid = (SELECT user_uuid from orders where order_num = $3)`
-		tag, err = db.pool.Exec(ctx, queryUpdUsers, accrual, time.Now(), orderNum)
-		if err != nil {
-			return fmt.Errorf("failed to update user balance: %w", err)
-		}
-
-		rowsInserted = tag.RowsAffected()
-
-		if rowsInserted == 0 {
-			return fmt.Errorf("no rows were updated during user balance update")
-		}
-
-		// Commit transaction
-		if err = tx.Commit(ctx); err != nil {
-			return fmt.Errorf("failed to commit transaction: %w", err)
-		}
+	queryUpdOrders := `UPDATE orders  SET status = $1 WHERE order_num = $2`
+	tag, err := db.pool.Exec(ctx, queryUpdOrders, status, orderNum)
+	if err != nil {
+		return fmt.Errorf("failed to update order: %w", err)
 	}
 
+	rowsInserted := tag.RowsAffected()
+
+	if rowsInserted == 0 {
+		return fmt.Errorf("no rows were updated")
+	}
+
+	return nil
+}
+
+func (db *DB) UpdateOrderWithAccrual(ctx context.Context, orderNum string, status string, accrual float64) error {
+	// Begin transaction
+	tx, err := db.pool.BeginTx(ctx, pgx.TxOptions{
+		IsoLevel: pgx.ReadCommitted,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to start a transaction: %w", err)
+	}
+
+	queryUpdOrders := `UPDATE  orders  SET accrual = $1, status = $2 WHERE order_num = $3`
+	tag, err := db.pool.Exec(ctx, queryUpdOrders, accrual, status, orderNum)
+	if err != nil {
+		return fmt.Errorf("failed to update order: %w", err)
+	}
+
+	rowsInserted := tag.RowsAffected()
+
+	if rowsInserted == 0 {
+		return fmt.Errorf("no rows were updated during order update")
+	}
+
+	queryUpdUsers := `UPDATE  users  SET balance = balance + $1, updated_at = $2  WHERE uuid = (SELECT user_uuid from orders where order_num = $3)`
+	tag, err = db.pool.Exec(ctx, queryUpdUsers, accrual, time.Now(), orderNum)
+	if err != nil {
+		return fmt.Errorf("failed to update user balance: %w", err)
+	}
+
+	rowsInserted = tag.RowsAffected()
+
+	if rowsInserted == 0 {
+		return fmt.Errorf("no rows were updated during user balance update")
+	}
+
+	// Commit transaction
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	
 	return nil
 }
 
@@ -290,7 +292,7 @@ func (db *DB) GetBalance(ctx context.Context, user uuid.UUID) (models.User, erro
 
 func (db *DB) PutUserWithdrawnOrder(ctx context.Context, user uuid.UUID, orderNum string, withdrawn float64) error {
 	const (
-		querySelect = `SELECT balance FROM users WHERE uuid = $1`
+		querySelect = `SELECT balance FROM users WHERE uuid = $1 FOR UPDATE`
 		queryInsert = `INSERT INTO orders (order_num, status, user_uuid, withdrawn, created_at) 
 						VALUES ($1, $2, $3, $4, $5)`
 		queryUpdate = `UPDATE users  SET withdrawn = withdrawn + $1, balance = balance - $1, updated_at = $2
