@@ -307,9 +307,13 @@ func (h *Handlers) getUserOrders(c *gin.Context) {
 	var ordersResponse []userOrdersResponse
 	for _, order := range orders {
 		var orderResponse userOrdersResponse
+		if order.Accrual != nil {
+			accrual := float64(*order.Accrual) / 100.0
+			orderResponse.Accrual = &accrual
+
+		}
 		orderResponse.OrderNumber = order.OrderNumber
 		orderResponse.Status = order.Status
-		orderResponse.Accrual = order.Accrual
 		orderResponse.CreatedAt = order.CreatedAt.Format(time.RFC3339)
 		ordersResponse = append(ordersResponse, orderResponse)
 	}
@@ -337,8 +341,8 @@ func (h *Handlers) getUserBalance(c *gin.Context) {
 	}
 
 	var userBal userBalance
-	userBal.Balance = balance.Balance
-	userBal.Withdrawn = balance.Withdrawn
+	userBal.Balance = float64(balance.Balance) / 100
+	userBal.Withdrawn = float64(balance.Withdrawn) / 100
 	c.JSON(http.StatusOK, userBal)
 }
 
@@ -355,8 +359,8 @@ func (h *Handlers) postOrderWithWithdrawn(c *gin.Context) {
 	}
 
 	// Bind JSON to struct
-	var orderWithWithdrawn orderWithWithdrawn
-	if err = c.ShouldBindJSON(&orderWithWithdrawn); err != nil {
+	var orderWWithdrawn orderWithWithdrawn
+	if err = c.ShouldBindJSON(&orderWWithdrawn); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "invalid request body",
 			"details": err.Error(),
@@ -364,7 +368,7 @@ func (h *Handlers) postOrderWithWithdrawn(c *gin.Context) {
 		return
 	}
 
-	err = h.srv.PutUserWithdrawnOrder(c, userUUID, orderWithWithdrawn.Order, orderWithWithdrawn.Sum)
+	err = h.srv.PutUserWithdrawnOrder(c, userUUID, orderWWithdrawn.Order, orderWWithdrawn.Sum)
 	if err != nil {
 		c.JSON(h.getStatusCode(err), gin.H{
 			"error":   "cannot register order",
@@ -375,7 +379,7 @@ func (h *Handlers) postOrderWithWithdrawn(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "order successfully registered",
-		"order":   orderWithWithdrawn.Order,
+		"order":   orderWWithdrawn.Order,
 	})
 }
 
@@ -404,7 +408,7 @@ func (h *Handlers) getUserWithdrawals(c *gin.Context) {
 		var orderResponse orderWithWithdrawn
 		orderResponse.Order = order.OrderNumber
 		if order.Withdrawn != nil {
-			orderResponse.Sum = *order.Withdrawn
+			orderResponse.Sum = float64(*order.Withdrawn) / 100
 		}
 		orderResponse.ProcessedAt = order.CreatedAt.Format(time.RFC3339)
 		ordersResponse = append(ordersResponse, orderResponse)

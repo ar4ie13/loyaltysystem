@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/ar4ie13/loyaltysystem/internal/apperrors"
@@ -242,7 +243,7 @@ func (db *DB) UpdateOrderWithoutAccrual(ctx context.Context, orderNum string, st
 }
 
 // UpdateOrderWithAccrual updates status for orders with accrual, used by requestor service
-func (db *DB) UpdateOrderWithAccrual(ctx context.Context, orderNum string, status string, accrual float64) error {
+func (db *DB) UpdateOrderWithAccrual(ctx context.Context, orderNum string, status string, accrualFloat float64) error {
 	// Begin transaction
 	tx, err := db.pool.BeginTx(ctx, pgx.TxOptions{
 		IsoLevel: pgx.ReadCommitted,
@@ -250,7 +251,7 @@ func (db *DB) UpdateOrderWithAccrual(ctx context.Context, orderNum string, statu
 	if err != nil {
 		return fmt.Errorf("failed to start a transaction: %w", err)
 	}
-
+	accrual := int(math.Round(accrualFloat * 100))
 	queryUpdOrders := `UPDATE  orders  SET accrual = $1, status = $2 WHERE order_num = $3`
 	tag, err := db.pool.Exec(ctx, queryUpdOrders, accrual, status, orderNum)
 	if err != nil {
@@ -299,7 +300,7 @@ func (db *DB) GetBalance(ctx context.Context, user uuid.UUID) (models.User, erro
 }
 
 // PutUserWithdrawnOrder stores user's order with withdrawn to the db
-func (db *DB) PutUserWithdrawnOrder(ctx context.Context, user uuid.UUID, orderNum string, withdrawn float64) error {
+func (db *DB) PutUserWithdrawnOrder(ctx context.Context, user uuid.UUID, orderNum string, withdrawnFloat float64) error {
 	const (
 		querySelect = `SELECT balance FROM users WHERE uuid = $1 FOR UPDATE`
 		queryInsert = `INSERT INTO orders (order_num, status, user_uuid, withdrawn, created_at) 
@@ -317,6 +318,7 @@ func (db *DB) PutUserWithdrawnOrder(ctx context.Context, user uuid.UUID, orderNu
 	}
 
 	// Checking user balance
+	withdrawn := int(math.Round(withdrawnFloat * 100))
 	var balance models.User
 	row := db.pool.QueryRow(ctx, querySelect, user)
 	err = row.Scan(&balance.Balance)
