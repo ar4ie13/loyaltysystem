@@ -17,7 +17,7 @@ build:
 # Run the Go application with -d
 run: build
 	@echo "Running $(BINARY_NAME)..."
-	$(BUILD_DIR)/$(BINARY_NAME) -l=debug -r "localhost:8081" -d="postgres://gophermart:gophermart@localhost:5432/gophermart?sslmode=disable"
+	$(BUILD_DIR)/$(BINARY_NAME) -l=debug -d="postgres://gophermart:gophermart@localhost:5432/gophermart?sslmode=disable"
 
 # Run accrual with database
 acc:
