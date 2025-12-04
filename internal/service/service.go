@@ -52,20 +52,20 @@ func (s *Service) checkLoginString(login string) bool {
 }
 
 // CreateUser used to create user by provided login and password hashed at handler's layer
-func (s *Service) CreateUser(ctx context.Context, user models.User) error {
+func (s *Service) CreateUser(ctx context.Context, user models.User) (uuid.UUID, error) {
 
 	if !s.checkLoginString(user.Login) {
-		return apperrors.ErrInvalidLoginString
+		return uuid.Nil, apperrors.ErrInvalidLoginString
 	}
 
 	user.UUID = uuid.New()
 
 	err := s.repo.CreateUser(ctx, user)
 	if err != nil {
-		return err
+		return uuid.Nil, err
 	}
 
-	return nil
+	return user.UUID, nil
 }
 
 // LoginUser used for logging users in

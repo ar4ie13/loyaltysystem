@@ -53,7 +53,7 @@ type Auth interface {
 // Service interface used in handlers layer
 type Service interface {
 	LoginUser(ctx context.Context, login string) (models.User, error)
-	CreateUser(ctx context.Context, user models.User) error
+	CreateUser(ctx context.Context, user models.User) (uuid.UUID, error)
 	PutUserOrder(ctx context.Context, user uuid.UUID, order string) error
 	GetUserOrders(ctx context.Context, userUUID uuid.UUID) ([]models.Order, error)
 	GetBalance(ctx context.Context, user uuid.UUID) (models.User, error)
@@ -149,7 +149,7 @@ func (h *Handlers) userRegister(c *gin.Context) {
 		PasswordHash: passwordHash,
 	}
 
-	err = h.srv.CreateUser(c, user)
+	userUUID, err := h.srv.CreateUser(c, user)
 	if err != nil {
 		c.JSON(h.getStatusCode(err), gin.H{
 			"error":   "cannot create user",
@@ -158,7 +158,7 @@ func (h *Handlers) userRegister(c *gin.Context) {
 		return
 	}
 
-	tokenString, err := h.auth.BuildJWTString(user.UUID)
+	tokenString, err := h.auth.BuildJWTString(userUUID)
 	if err != nil {
 		h.zlog.Error().Msgf("error building JWT string: %v", err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
