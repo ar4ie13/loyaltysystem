@@ -105,6 +105,7 @@ func (r *Requestor) executeRequestWorker(ctx context.Context, wg *sync.WaitGroup
 			var accrualResponse AccrualResponse
 			if err = json.Unmarshal(resp.Body(), &accrualResponse); err != nil {
 				r.zlog.Err(err).Msg("unable to unmarshal accrual response")
+				return
 			}
 			var accrual float64
 			if accrualResponse.Accrual == nil {

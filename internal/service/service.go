@@ -58,6 +58,8 @@ func (s *Service) CreateUser(ctx context.Context, user models.User) error {
 		return apperrors.ErrInvalidLoginString
 	}
 
+	user.UUID = uuid.New()
+
 	err := s.repo.CreateUser(ctx, user)
 	if err != nil {
 		return err

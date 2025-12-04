@@ -28,39 +28,43 @@ type Config struct {
 
 // NewConfig creates new Config configuration object
 func NewConfig() *Config {
-	c := &Config{}
-	c.GetConfig()
+	c := &Config{
+		AuthConf: authconf.Config{
+			SecretKey:       "nHhjHgahbioHBGbBHJ",
+			TokenExpiration: 24 * time.Hour,
+			PasswordLen:     6,
+		},
+		ServerConf: serverconf.ServerConf{
+			ServerAddr: "localhost:8080",
+		},
+		AccrualConf: reqconf.ReqConf{
+			WorkerNum:   runtime.NumCPU(),
+			AccrualAddr: "http://localhost:8081",
+		},
+		LogConf: logconf.LogLevel{
+			Level: zerolog.DebugLevel,
+		},
+	}
+
+	c.BindFlags()
+	flag.Parse()
+	c.LoadEnv()
 
 	return c
 }
 
-// GetConfig parses flags and environment variables for service configuration
-func (c *Config) GetConfig() {
-
-	defaultServerAddr := "localhost:8080"
-	defaultDatabaseDSN := ""
-	defaultAccrualAddr := "localhost:8081"
-	defaultLogLevel := zerolog.DebugLevel
-	defaultSecretKey := "nHhjHgahbioHBGbBHJ"
-	defaultTokenExpiration := time.Hour * 24
-	defaultPasswordLength := 6
-
-	flag.StringVar(&c.ServerConf.ServerAddr, "a", defaultServerAddr, "server startup address (host:port)")
-	flag.StringVar(&c.PGConf.DatabaseDSN, "d", defaultDatabaseDSN, "database connection string")
-	flag.StringVar(&c.AccrualConf.AccrualAddr, "r", defaultAccrualAddr, "accrual server address")
+// BindFlags parses flags and environment variables for service configuration
+func (c *Config) BindFlags() {
+	flag.StringVar(&c.ServerConf.ServerAddr, "a", c.ServerConf.ServerAddr, "server startup address (host:port)")
+	flag.StringVar(&c.PGConf.DatabaseDSN, "d", c.PGConf.DatabaseDSN, "database connection string")
+	flag.StringVar(&c.AccrualConf.AccrualAddr, "r", c.AccrualConf.AccrualAddr, "accrual server address")
 	flag.Var(&c.LogConf, "l", "log level (debug, info, warn, error, fatal)")
-	flag.StringVar(&c.AuthConf.SecretKey, "k", defaultSecretKey, "secret key for authorization")
-	flag.DurationVar(&c.AuthConf.TokenExpiration, "e", defaultTokenExpiration, "token expiration")
-	flag.IntVar(&c.AuthConf.PasswordLen, "p", defaultPasswordLength, "password minimal length")
+	flag.StringVar(&c.AuthConf.SecretKey, "k", c.AuthConf.SecretKey, "secret key for authorization")
+	flag.DurationVar(&c.AuthConf.TokenExpiration, "e", c.AuthConf.TokenExpiration, "token expiration")
+	flag.IntVar(&c.AuthConf.PasswordLen, "p", c.AuthConf.PasswordLen, "password minimal length")
+}
 
-	if err := c.LogConf.Set(defaultLogLevel.String()); err != nil {
-		log.Fatal().Err(err).Msg("Failed to set default log level")
-	}
-
-	flag.Parse()
-
-	c.AccrualConf.WorkerNum = runtime.NumCPU()
-
+func (c *Config) LoadEnv() {
 	if serverAddr := os.Getenv("RUN_ADDRESS"); serverAddr != "" {
 		if _, err := strconv.Unquote("\"" + serverAddr + "\""); err != nil {
 			parts := strings.SplitN(serverAddr, ":", 2)
@@ -105,7 +109,7 @@ func (c *Config) GetConfig() {
 
 	}
 
-	if passwordLen, err := strconv.Atoi(os.Getenv("SECRET_KEY")); passwordLen != 0 {
+	if passwordLen, err := strconv.Atoi(os.Getenv("PASSWORD_MIN_LENGTH")); passwordLen != 0 {
 		if err != nil {
 			log.Fatal().Err(err).Msg("cannot parse password length environment variable")
 		}

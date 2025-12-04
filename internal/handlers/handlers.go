@@ -42,25 +42,8 @@ func NewHandlers(cfg config.ServerConf, auth Auth, srv Service, zlog zerolog.Log
 	}
 }
 
-// getStatusCode process error and return the correlated status code
-func (h *Handlers) getStatusCode(err error) int {
-	// fast error check
-	if status, exists := errorStatusMap[err]; exists {
-		return status
-	}
-
-	// For wrapped errors
-	for errType, status := range errorStatusMap {
-		if errors.Is(err, errType) {
-			return status
-		}
-	}
-	return http.StatusInternalServerError
-}
-
 // Auth used for authentication
 type Auth interface {
-	GenerateUserUUID() uuid.UUID
 	BuildJWTString(userUUID uuid.UUID) (string, error)
 	ValidateUserUUID(tokenString string) (uuid.UUID, error)
 	GenerateHashFromPassword(password string) (string, error)
@@ -122,6 +105,22 @@ func (h *Handlers) newRouter() *gin.Engine {
 	return router
 }
 
+// getStatusCode process error and return the correlated status code
+func (h *Handlers) getStatusCode(err error) int {
+	// fast error check
+	if status, exists := errorStatusMap[err]; exists {
+		return status
+	}
+
+	// For wrapped errors
+	for errType, status := range errorStatusMap {
+		if errors.Is(err, errType) {
+			return status
+		}
+	}
+	return http.StatusInternalServerError
+}
+
 // userRegister is a handler used for user registration by using provided login and password
 func (h *Handlers) userRegister(c *gin.Context) {
 	var registerReq registerRequest
@@ -146,7 +145,6 @@ func (h *Handlers) userRegister(c *gin.Context) {
 	}
 
 	user := models.User{
-		UUID:         h.auth.GenerateUserUUID(),
 		Login:        registerReq.Login,
 		PasswordHash: passwordHash,
 	}

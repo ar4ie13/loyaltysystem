@@ -31,11 +31,6 @@ func NewAuth(conf authconf.Config) *Auth {
 	}
 }
 
-// GenerateUserUUID generates new UUID for user
-func (a Auth) GenerateUserUUID() uuid.UUID {
-	return uuid.New()
-}
-
 // BuildJWTString creates new JWT token
 func (a Auth) BuildJWTString(userUUID uuid.UUID) (string, error) {
 	// creating new token with HS256 algorithm and claims — Auth
@@ -90,7 +85,7 @@ func (a Auth) parseTokenString(tokenString string) (*Claims, *jwt.Token, error) 
 	if err != nil {
 		return claims, token, err
 	}
-	
+
 	return claims, token, nil
 }
 
