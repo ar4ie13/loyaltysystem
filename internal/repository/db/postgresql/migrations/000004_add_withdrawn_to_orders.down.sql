@@ -1,0 +1,5 @@
+BEGIN TRANSACTION;
+
+ALTER TABLE orders DROP COLUMN withdrawn;
+
+COMMIT;
